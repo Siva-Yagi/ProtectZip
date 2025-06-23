@@ -10,7 +10,6 @@
   <input type="file" id="fileInput" accept=".zip"><br>
   <input type="password" id="password" placeholder="パスワード"><br>
   <button id="btn">パスワードを設定</button>
-
   <div id="manualDownload" style="margin-top:20px;"></div>
 
   <script>
@@ -29,10 +28,10 @@
 
       try {
         const reader = new zip.BlobReader(input.files[0]);
-        const writer = new zip.BlobWriter('application/zip'); // 🔑 MIME指定
+        const writer = new zip.BlobWriter('application/zip');
         const zipWriter = new zip.ZipWriter(writer, {
           password: pwd,
-          bufferedWrite: false // 🔑 オプション追加（環境依存の不具合対応）
+          bufferedWrite: false
         });
         const zipReader = new zip.ZipReader(reader);
 
@@ -42,48 +41,37 @@
         }
         await zipWriter.close();
 
-        const blob = await writer.getData(); // 🔑 await 必須 before download
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'protected.zip';
-        document.body.appendChild(a); // 🧷 Safari対応
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        const blob = await writer.getData();
 
+        // Safari対応の分岐
+        if (navigator.userAgent.match(/Safari/) && !navigator.userAgent.match(/Chrome/)) {
+          const fileReader = new FileReader();
+          fileReader.onload = () => {
+            triggerDownload(fileReader.result);
+          };
+          fileReader.readAsDataURL(blob);
+        } else {
+          const url = URL.createObjectURL(blob);
+          triggerDownload(url);
+          URL.revokeObjectURL(url);
+        }
       } catch (err) {
         console.error(err);
         manualDiv.innerHTML = `
-          <p>自動ダウンロードに失敗しました。以下から手動でダウンロードしてください：</p>
+          <p>自動ダウンロードに失敗しました。手動でダウンロードしてください：</p>
           <button id="manualLink">手動ダウンロード</button>`;
-
-        document.getElementById('manualLink').addEventListener('click', async () => {
-          const reader = new zip.BlobReader(input.files[0]);
-          const writer = new zip.BlobWriter('application/zip');
-          const zipWriter = new zip.ZipWriter(writer, {
-            password: pwd,
-            bufferedWrite: false
-          });
-          const zipReader = new zip.ZipReader(reader);
-
-          const entries = await zipReader.getEntries();
-          for (const entry of entries) {
-            await zipWriter.add(entry.filename, entry.getData(new zip.BlobWriter()));
-          }
-          await zipWriter.close();
-
-          const blob = await writer.getData();
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = 'protected.zip';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-        });
+        document.getElementById('manualLink').addEventListener('click', () =>
+          addPasswordToZip()); // 再実行される
       }
+    }
+
+    function triggerDownload(url) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'protected.zip';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     }
   </script>
 </body>
