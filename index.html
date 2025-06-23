@@ -1,49 +1,54 @@
 <!DOCTYPE html>
-  <html lang="ja">
-  <head>
-    <meta charset="UTF-8">
-    <title>ZIPファイルにパスワードを設定</title>
-    <script src="https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2.6.21/dist/zip.min.js"></script>
-  </head>
-  <body>
-    <h1>ZIPファイルにパスワードを設定</h1>
-    <input type="file" id="fileInput" accept=".zip">
-    <input type="password" id="password" placeholder="パスワード">
-    <button onclick="addPasswordToZip()">パスワードを設定</button>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>パスワード付きZIP作成</title>
+  <script src="https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2.6.21/dist/zip.min.js"></script>
+</head>
+<body>
+  <h1>ZIPファイルにパスワードを設定</h1>
+  <input type="file" id="fileInput" accept=".zip">
+  <input type="password" id="password" placeholder="パスワード">
+  <button id="btn">パスワードを設定</button>
 
-    <script>
-      async function addPasswordToZip() {
-        const fileInput = document.getElementById('fileInput');
-        const password = document.getElementById('password').value;
+  <script>
+    document.getElementById('btn').addEventListener('click', addPasswordToZip);
 
-        if (!fileInput.files.length || !password) {
-          alert('ZIPファイルとパスワードを入力してください');
-          return;
-        }
+    async function addPasswordToZip() {
+      const fileInput = document.getElementById('fileInput');
+      const password = document.getElementById('password').value;
 
-        const zipFile = fileInput.files[0];
-        const reader = new zip.BlobReader(zipFile);
-        const writer = new zip.BlobWriter('application/zip');
-
-        const zipReader = new zip.ZipReader(reader);
-        const zipWriter = new zip.ZipWriter(writer, { password: password });
-
-        const entries = await zipReader.getEntries();
-        for (const entry of entries) {
-          await zipWriter.add(entry.filename, entry.getData(new zip.BlobWriter()));
-        }
-
-        await zipWriter.close();
-        const blob = await writer.getData();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'protected.zip';
-        document.body.appendChild(a);
-        a.click();
-        URL.revokeObjectURL(url);
-        a.remove();
+      if (!fileInput.files.length || !password) {
+        alert('ZIPファイルとパスワードを入力してください');
+        return;
       }
-    </script>
-  </body>
-  </html>
+
+      const zipFile = fileInput.files[0];
+      const reader = new zip.BlobReader(zipFile);
+      const writer = new zip.BlobWriter('application/zip');
+
+      const zipWriter = new zip.ZipWriter(writer, {
+        password,
+        bufferedWrite: false
+      });
+
+      const zipReader = new zip.ZipReader(reader);
+      const entries = await zipReader.getEntries();
+      for (const entry of entries) {
+        await zipWriter.add(entry.filename, entry.getData(new zip.BlobWriter()));
+      }
+      await zipWriter.close();
+
+      const blob = await writer.getData();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'protected.zip';
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(url);
+      a.remove();
+    }
+  </script>
+</body>
+</html>
