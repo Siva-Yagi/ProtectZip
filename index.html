@@ -2,52 +2,81 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>パスワード付きZIP作成</title>
+  <title>ZIPファイルにパスワードを設定</title>
   <script src="https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2.6.21/dist/zip.min.js"></script>
 </head>
 <body>
   <h1>ZIPファイルにパスワードを設定</h1>
-  <input type="file" id="fileInput" accept=".zip">
-  <input type="password" id="password" placeholder="パスワード">
+  
+  <input type="file" id="fileInput" accept=".zip"><br>
+  <input type="password" id="password" placeholder="パスワード"><br>
   <button id="btn">パスワードを設定</button>
+  
+  <!-- 自動ダウンロードが失敗した場合のリンクをここに表示 -->
+  <div id="manualDownload" style="margin-top:20px;"></div>
 
   <script>
     document.getElementById('btn').addEventListener('click', addPasswordToZip);
 
     async function addPasswordToZip() {
-      const fileInput = document.getElementById('fileInput');
-      const password = document.getElementById('password').value;
+      const input = document.getElementById('fileInput');
+      const pwd = document.getElementById('password').value;
+      const manualDiv = document.getElementById('manualDownload');
+      manualDiv.innerHTML = '';  // クリア
 
-      if (!fileInput.files.length || !password) {
+      if (!input.files.length || !pwd) {
         alert('ZIPファイルとパスワードを入力してください');
         return;
       }
 
-      const zipFile = fileInput.files[0];
-      const reader = new zip.BlobReader(zipFile);
-      const writer = new zip.BlobWriter('application/zip');
+      try {
+        const reader = new zip.BlobReader(input.files[0]);
+        const writer = new zip.BlobWriter('application/zip');
+        const zipWriter = new zip.ZipWriter(writer, { password: pwd, bufferedWrite: false });
+        const zipReader = new zip.ZipReader(reader);
+        
+        for (const entry of await zipReader.getEntries()) {
+          await zipWriter.add(entry.filename, entry.getData(new zip.BlobWriter()));
+        }
+        await zipWriter.close();
 
-      const zipWriter = new zip.ZipWriter(writer, {
-        password,
-        bufferedWrite: false
-      });
+        const blob = await writer.getData();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'protected.zip';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
 
-      const zipReader = new zip.ZipReader(reader);
-      const entries = await zipReader.getEntries();
-      for (const entry of entries) {
-        await zipWriter.add(entry.filename, entry.getData(new zip.BlobWriter()));
+      } catch (err) {
+        console.error(err);
+        manualDiv.innerHTML = `
+          <p>自動ダウンロードに失敗しました。以下から手動でダウンロードしてください：</p>
+          <a id="manualLink">ここをクリックして手動ダウンロード</a>`;
+        
+        document.getElementById('manualLink').onclick = async () => {
+          const writer = new zip.BlobWriter('application/zip');
+          const zipWriter = new zip.ZipWriter(writer, { password: pwd, bufferedWrite: false });
+          const zipReader = new zip.ZipReader(new zip.BlobReader(input.files[0]));
+
+          for (const entry of await zipReader.getEntries()) {
+            await zipWriter.add(entry.filename, entry.getData(new zip.BlobWriter()));
+          }
+          await zipWriter.close();
+
+          const blob = await writer.getData();
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = 'protected.zip';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        };
       }
-      await zipWriter.close();
-
-      const blob = await writer.getData();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'protected.zip';
-      document.body.appendChild(a);
-      a.click();
-      URL.revokeObjectURL(url);
-      a.remove();
     }
   </script>
 </body>
