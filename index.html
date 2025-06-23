@@ -23,7 +23,7 @@
 
         const zipFile = fileInput.files[0];
         const reader = new zip.BlobReader(zipFile);
-        const writer = new zip.BlobWriter();
+        const writer = new zip.BlobWriter('application/zip');
 
         const zipReader = new zip.ZipReader(reader);
         const zipWriter = new zip.ZipWriter(writer, { password: password });
