@@ -25,12 +25,12 @@
       }
       await zipWriter.close();
 
-      const blob = await writer.getData(); // ここがポイント
+      const blob = await writer.getData();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = 'encrypted.zip';
-      document.body.appendChild(a); // Safari対応
+      document.body.appendChild(a);
       a.click();
       URL.revokeObjectURL(url);
       a.remove();
