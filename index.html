@@ -39,8 +39,10 @@
         const a = document.createElement('a');
         a.href = url;
         a.download = 'protected.zip';
+        document.body.appendChild(a);
         a.click();
         URL.revokeObjectURL(url);
+        a.remove();
       }
     </script>
   </body>
