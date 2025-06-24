@@ -2,59 +2,49 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>パスワード付きZIP作成（Safari対応）</title>
-  <script src="https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2.6.21/dist/zip.min.js"></script>
+  <title>パスワード付き ZIP 作成</title>
+  <!-- JSZip + FileSaver.js を想定 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 </head>
 <body>
-  <h1>ZIPファイルにパスワードを設定</h1>
-  <input type="file" id="fileInput" accept=".zip"><br>
-  <input type="password" id="password" placeholder="パスワード"><br>
-  <button id="btn">パスワードを設定</button>
+  <h1>ZIPにパスワードを付けよう</h1>
+
+  <div>
+    <label>ファイル選択：</label>
+    <input type="file" id="files" multiple>
+  </div>
+
+  <div>
+    <label>パスワード：</label>
+    <input type="password" id="zipPassword" placeholder="Enter password">
+  </div>
+
+  <button id="zipBtn">Set Password</button>
 
   <script>
-    document.getElementById('btn').addEventListener('click', async () => {
-      const input = document.getElementById('fileInput');
-      const pwd = document.getElementById('password').value;
-      if (!input.files.length || !pwd) { alert('入力に不備があります'); return; }
+    document.getElementById('zipBtn').addEventListener('click', async () => {
+      const pwd = document.getElementById('zipPassword').value;
+      const files = document.getElementById('files').files;
 
-      try {
-        // ZIP生成
-        const reader = new zip.BlobReader(input.files[0]);
-        const writer = new zip.BlobWriter('application/zip');
-        const zipWriter = new zip.ZipWriter(writer, { password: pwd, bufferedWrite: false });
-        const zipReader = new zip.ZipReader(reader);
-
-        for (const entry of await zipReader.getEntries()) {
-          await zipWriter.add(entry.filename, entry.getData(new zip.BlobWriter()));
-        }
-        await zipWriter.close();
-        const blob = await writer.getData();
-
-        // Safari対応分岐
-        const isSafari = navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome');
-        if (isSafari) {
-          const fr = new FileReader();
-          fr.onload = () => triggerDownload(fr.result);
-          fr.readAsDataURL(blob);
-        } else {
-          const url = URL.createObjectURL(blob);
-          triggerDownload(url);
-          URL.revokeObjectURL(url);
-        }
-      } catch (e) {
-        console.error(e);
-        alert('ダウンロードに失敗しました');
+      if (!pwd || files.length === 0) {
+        alert('パスワードとファイルを指定してください');
+        return;
       }
-    });
 
-    function triggerDownload(url) {
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'protected.zip';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    }
+      // ZIPにファイルを追加
+      const zip = new JSZip();
+      for (let f of files) {
+        zip.file(f.name, f);
+      }
+
+      // パスワード設定 + ZIP生成
+      zip.setPassword(pwd);        // パスワード設定
+      const blob = await zip.generateAsync({ type: 'blob', encryption: 'AES' });
+
+      // ダウンロード
+      saveAs(blob, 'protected.zip');
+    });
   </script>
 </body>
 </html>
